@@ -1,0 +1,7 @@
+#ifndef VERSION_H
+#define VERSION_H
+
+#define RT_PACKAGE_MAJOR_VERSION 0
+#define RT_PACKAGE_MINOR_VERSION 2
+
+#endif // VERSION_H

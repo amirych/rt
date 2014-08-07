@@ -1,0 +1,10 @@
+Version 0.1: First beta release (tested mostly with float data type)
+
+
+22.07.2014
+Version 0.2: Change format of output ray-tracing files!!!
+             (beam.cpp: Save method of Beam class and load_beam_data function)
+             The new format is more optimazed for large-file I/O.
+                        
+07.08.2014
+Add public Beam::Normalize() method
