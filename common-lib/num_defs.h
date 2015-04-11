@@ -11,11 +11,11 @@
 #endif
 
 
-//typedef double real_t;
-//#define RT_NUM_DOUBLE
+typedef double real_t;
+#define RT_NUM_DOUBLE
 
 
-typedef float real_t;
+//typedef float real_t;
 
 #define RT_PI 3.14159265359
 

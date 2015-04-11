@@ -32,6 +32,8 @@ RT_engine_error beam_random(Beam::BeamShape shape, real_t* params, real_t* cente
 
 RT_engine_error beam_conic_cosins(size_t Nrays, real_t conic_angle, real_t *X, real_t *Y, real_t *cX, real_t *cY, real_t *cZ);
 
+RT_engine_error beam_gauss_cosins(size_t Nrays, real_t fwhm, real_t *cX, real_t *cY, real_t *cZ);
+
 RT_engine_error uniform_range_beam(size_t Nrays, real_t *range, real_t *lambda);
 
 RT_engine_error random_range_beam(size_t Nrays, real_t *range, real_t *lambda);

@@ -8,6 +8,7 @@
 #include<list>
 #include<vector>
 #include<exception>
+#include<cmath>
 
 
 #define MAX_POLY_COEFFS 10

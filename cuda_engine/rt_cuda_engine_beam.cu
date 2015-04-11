@@ -425,6 +425,7 @@ RT_engine_error beam_transform(size_t Nrays, real_t *angles, real_t *dist, real_
     real_t *dev_X, *dev_Y, *dev_Z;
 
 //    printf("COO BEFORE: %f %f %f\n",X[10],Y[10],Z[10]);
+//    printf("ANGLES: %f %f %f\n",angles[0],angles[1],angles[2]);
 
     // copy translation values
     cuda_err = cudaMemcpyToSymbol(dev_dist,dist,3*sizeof(real_t));
@@ -946,3 +947,200 @@ RT_engine_error random_range_beam(size_t Nrays, real_t *range, real_t *lambda)
 }
 
 
+
+// compute directional cosins
+__global__
+static void gauss_cosins_kernel(size_t Nrays, real_t *dev_cX, real_t *dev_cY, real_t *dev_cZ)
+{
+    size_t idx = threadIdx.x + blockIdx.x*blockDim.x;
+    real_t sinZ;
+    real_t sig;
+    real_t cX, cY, cZ;
+    real_t cs, sn;
+
+    // random numbers in (0,1] are in dev_lambda
+    while ( idx < Nrays ) {
+
+        cX = 0.0;
+        cY = 0.0;
+        cZ = 1.0;
+
+        cs = rsqrt(1.0 + dev_cX[idx]*dev_cX[idx]);
+        sig = signbit(dev_cX[idx]) ? -1.0 : 1.0;
+        sn = sig*rsqrt(1.0 + 1.0/dev_cX[idx]/dev_cX[idx]);
+
+        cY = -sn*cZ;
+        cZ = cs*cZ;
+
+        cs = rsqrt(1.0 + dev_cY[idx]*dev_cY[idx]);
+        sig = signbit(dev_cY[idx]) ? -1.0 : 1.0;
+        sn = sig*rsqrt(1.0 + 1.0/dev_cY[idx]/dev_cY[idx]);
+
+        cX = -sn*cZ;
+        cZ = cs*cZ;
+
+        dev_cX[idx] = cX;
+        dev_cY[idx] = cY;
+        dev_cZ[idx] = cZ;
+
+
+//        printf("%21.15e %21.15e %21.15e\n",dev_cX[idx],dev_cY[idx],dev_cZ[idx]);
+//        printf("check: %21.15e\n",dev_cX[idx]*dev_cX[idx]+dev_cY[idx]*dev_cY[idx]+dev_cZ[idx]*dev_cZ[idx]);
+        idx += blockDim.x*gridDim.x;
+    }
+}
+
+
+__host__
+static RT_engine_error gauss_cosins_cycle(size_t Nrays,size_t start_elem, real_t stddev,
+                                          real_t *cX, real_t *cY, real_t *cZ,
+                                          real_t *dev_cX, real_t *dev_cY, real_t *dev_cZ)
+{
+    cudaError_t cuda_err;
+    curandStatus_t curand_err;
+    curandGenerator_t gen;
+    int N_cuda_blocks, N_cuda_threads;
+
+    // create random generator and init random seed
+    curand_err = curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+    if ( curand_err != CURAND_STATUS_SUCCESS ) {
+        cudaFreeChunk(3,dev_cX,dev_cY,dev_cZ);
+        return ENGINE_ERROR_FAILED;
+    }
+
+    // generate seed
+#ifdef USING_LINUX
+    u_int64_t seed;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC_RAW,&ts);
+    seed = (u_int64_t)ts.tv_nsec;
+#endif
+
+#ifdef USING_MSVC
+    uint64_t seed;
+    LARGE_INTEGER ts;
+    QueryPerformanceCounter(&ts);
+    seed = (uint64_t)ts.QuadPart;
+#endif
+
+    curand_err = curandSetPseudoRandomGeneratorSeed(gen, seed);
+    if ( curand_err != CURAND_STATUS_SUCCESS ) {
+        cudaFreeChunk(3,dev_cX,dev_cY,dev_cZ);
+        return ENGINE_ERROR_FAILED;
+    }
+
+#ifdef RT_NUM_DOUBLE
+
+    real_t tg = tan(stddev);
+    //    curand_err = curandGenerateNormalDouble(gen,dev_cZ+start_elem,Nrays,0.0,stddev);
+    curand_err = curandGenerateNormalDouble(gen,dev_cX+start_elem,Nrays,0.0,tg);
+    if ( curand_err != CURAND_STATUS_SUCCESS ) {
+        return ENGINE_ERROR_FAILED;
+    }
+    curand_err = curandGenerateNormalDouble(gen,dev_cY+start_elem,Nrays,0.0,tg);
+    if ( curand_err != CURAND_STATUS_SUCCESS ) {
+        return ENGINE_ERROR_FAILED;
+    }
+    curand_err = curandGenerateNormalDouble(gen,dev_cZ+start_elem,Nrays,0.0,stddev);
+    if ( curand_err != CURAND_STATUS_SUCCESS ) {
+        return ENGINE_ERROR_FAILED;
+    }
+//    curand_err = curandGenerateNormalDouble(gen,dev_cZ+start_elem,Nrays,0.0,tg);
+//    if ( curand_err != CURAND_STATUS_SUCCESS ) {
+//        return ENGINE_ERROR_FAILED;
+//    }
+//    curand_err = curandGenerateUniformDouble(gen,dev_cX+start_elem,Nrays);
+//    if ( curand_err != CURAND_STATUS_SUCCESS ) {
+//        return ENGINE_ERROR_FAILED;
+//    }
+#else
+    curand_err = curandGenerateNormal(gen,dev_cZ+start_elem,Nrays,0.0,stddev);
+    if ( curand_err != CURAND_STATUS_SUCCESS ) {
+        return ENGINE_ERROR_FAILED;
+    }
+    curand_err = curandGenerateUniform(gen,dev_cY+start_elem,Nrays);
+    if ( curand_err != CURAND_STATUS_SUCCESS ) {
+        return ENGINE_ERROR_FAILED;
+    }
+#endif
+
+    cuda_err = cuda_kernel_props(Nrays,&N_cuda_blocks,&N_cuda_threads);
+
+    gauss_cosins_kernel<<<N_cuda_blocks,N_cuda_threads>>>(Nrays,dev_cX+start_elem,dev_cY+start_elem,dev_cZ+start_elem);
+
+    cuda_err = cudaMemcpyChunk(Nrays,cudaMemcpyDeviceToHost,3,false,
+                               cX+start_elem,dev_cX,cY+start_elem,dev_cY,
+                               cZ+start_elem,dev_cZ);
+    if ( cuda_err != cudaSuccess ) {
+        return ENGINE_ERROR_FAILED;
+    }
+
+    return ENGINE_ERROR_OK;
+
+}
+
+// callable host function (fwhm must be in arcsecs)
+__host__
+RT_engine_error beam_gauss_cosins(size_t Nrays, real_t fwhm, real_t *cX, real_t *cY, real_t *cZ)
+{
+    cudaError_t cuda_err;
+    RT_engine_error ret_err;
+    int N_cuda_blocks, N_cuda_threads;
+
+    size_t dev_Nrays, N_chunks, rest_Nrays, start_elem;
+
+    real_t *dev_cX, *dev_cY, *dev_cZ;
+
+//    real_t stddev = fwhm/2.35482*3.14159265359/5.4E+4; // arcsecs to radians
+//    stddev = cos(stddev);
+
+//    real_t stddev = fwhm/2.35482; // fwhm to standard deviation
+
+    real_t stddev = fwhm/2.35482*RT_PI/180/3600; // fwhm to standard deviation in radians
+
+//    printf("STDDEV: %e (fwhm = %f)\n",stddev,fwhm);
+
+//    cuda_err = cuda_malloc_vectors(Nrays,&dev_Nrays,XYcXcYcZ_vect_flags,
+//                                   &dev_X,&dev_Y,&dev_cX,&dev_cY,&dev_cZ);
+    cuda_err = cudaMallocChunk(Nrays,&dev_Nrays,3,false,
+                               &dev_cX,&dev_cY,&dev_cZ);
+    if ( cuda_err != cudaSuccess ) {
+        return ENGINE_ERROR_BAD_ALLOC;
+    }
+
+    cuda_err = cuda_kernel_props(dev_Nrays,&N_cuda_blocks,&N_cuda_threads);
+    if ( cuda_err != cudaSuccess ) {
+//        cuda_free_mem(XYcXcYcZ_vect_flags,dev_X,dev_Y,dev_cX,dev_cY,dev_cZ);
+        cudaFreeChunk(3,dev_cX,dev_cY,dev_cZ);
+        return ENGINE_ERROR_FAILED;
+    }
+
+    N_chunks = Nrays/dev_Nrays;
+
+    ret_err = ENGINE_ERROR_OK;
+
+
+    // main cycle
+    start_elem = 0;
+    for ( size_t i = 0; i < N_chunks; ++i) {
+        ret_err = gauss_cosins_cycle(dev_Nrays,start_elem,stddev,cX,cY,cZ,dev_cX,dev_cY,dev_cZ);
+        if ( ret_err != ENGINE_ERROR_OK ) break;
+        start_elem += dev_Nrays;
+    }
+
+    // process rest of rays
+    rest_Nrays = Nrays % dev_Nrays;
+    if ( rest_Nrays && (ret_err == ENGINE_ERROR_OK) ) {
+        cuda_err = cuda_kernel_props(rest_Nrays,&N_cuda_blocks,&N_cuda_threads);
+        if ( cuda_err != cudaSuccess ) {
+//            cuda_free_mem(XYcXcYcZ_vect_flags,dev_X,dev_Y,dev_cX,dev_cY,dev_cZ);
+            cudaFreeChunk(3,dev_cX,dev_cY,dev_cZ);
+            return ENGINE_ERROR_FAILED;
+        }
+        ret_err = gauss_cosins_cycle(rest_Nrays,start_elem,stddev,cX,cY,cZ,dev_cX,dev_cY,dev_cZ);
+    }
+
+//    cuda_free_mem(XYcXcYcZ_vect_flags,dev_X,dev_Y,dev_cX,dev_cY,dev_cZ);
+    cudaFreeChunk(3,dev_cX,dev_cY,dev_cZ);
+    return ret_err;
+}

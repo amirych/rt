@@ -124,7 +124,7 @@ int main(int argc, char* argv[])
                 break;
             }
             case Scheme::BadRange: {
-                ss << "Ther was bad range description in the input range file!\n";
+                ss << "There was bad range description in the input range file!\n";
                 exit_code = 1;
                 break;
             }

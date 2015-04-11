@@ -351,6 +351,7 @@ void Scheme::load_from_file(const string &filename, bool QE_flag)
     fclose(scheme_file);
 
     if ( scheme_tree == NULL ) {
+        cerr << "XML PARSING FAILURE!\n";
         throw bad_scheme(Scheme::ParseFailure);
     } else {
 //        cerr << "XML PARSING OK!\n";
@@ -1196,7 +1197,6 @@ void Scheme::ComputeQE(size_t Nlambda, char *QE_filename)
         mxmlIndexDelete(index);
         index = NULL;
 
-
         if ( !i_surface ) throw bad_scheme(Scheme::NoSurfaceDesc);
 
         // read beam description
@@ -1212,8 +1212,13 @@ void Scheme::ComputeQE(size_t Nlambda, char *QE_filename)
             throw bad_scheme(Scheme::NoBeamDesc);
         }
 
+
+//cout << "range ..." << endl;
+
         // get "range" attribute
         wavelenth_ranges = get_range("range",number_of_grating);
+
+//cout << "Nlambda: " << Nlambda << "; Nranges: " << wavelenth_ranges.size() << endl;
 
         mxmlIndexDelete(index);
         index = NULL;
@@ -1289,7 +1294,7 @@ void Scheme::ComputeQE(size_t Nlambda, char *QE_filename)
                     }
                     default: ;
                 }
-//                cout << "TYPE: " << type << "; max: " << *max_element(qe_val.begin(),qe_val.end()) << endl;
+//                cout << "TYPE: " << type << "; max: " << *max_element(qe_val.begin(),qe_val.end()) << "; min: " << *min_element(qe_val.begin(),qe_val.end()) << endl;
             }
 
             // save block

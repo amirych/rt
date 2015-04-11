@@ -103,8 +103,9 @@ if (CUDA_FOUND)
     set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH}:${CUDA_INCLUDE_DIRS}) # CUDA include paths
     message(STATUS "CUDA include paths: " ${CMAKE_INCLUDE_PATH})
 
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-arch=compute_20;-prec-sqrt=true;-prec-div=true )
-#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode arch=compute_20,code=sm_20)
+#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-arch=compute_50;-prec-sqrt=true;-prec-div=true )
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-arch=compute_20)
+#    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-arch=compute_20;-prec-sqrt=true;-prec-div=true )
 
 #     cuda_compile(RT_CUDA_ENGINE_COMMON_O rt_cuda_engine_common.cu)
 #     cuda_compile(RT_CUDA_ENGINE_BEAM_O rt_cuda_engine_beam.cu)
@@ -144,4 +145,3 @@ else()
 #        target_link_libraries(${CCD_FRAME} rt_simd_engine)
 #    endif()
 endif()
-

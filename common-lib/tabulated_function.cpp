@@ -114,6 +114,7 @@ void TabulatedFunction::Load(const char *filename)
         throw TabulatedFunction::bad_tab_func(TabulatedFunction::MemAllocError);
     }
     SplineInit();
+//cout << "size X = " << x.size() << "\n";
 }
 
 

@@ -1,6 +1,7 @@
 #include<iostream>
 #include<fstream>
 #include<iomanip>
+#include<cstdlib>
 
 #include "../common-lib/num_defs.h"
 #include "../common-lib/beam.h"

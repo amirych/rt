@@ -398,6 +398,24 @@ void Beam::Create(const vector<real_t> &params, const vector<real_t> &center, co
             break;
         }
         case Beam::Gauss: {
+            real_t fwhm;
+            switch ( Shape ) {
+                case Beam::Circle: {
+                    fwhm = params[3]; // fwhm must be given in arcsecs
+                    break;
+                }
+                case Beam::Rectangle: {
+                    fwhm = params[4]; // fwhm must be given in arcsecs
+                    break;
+                }
+                default: throw Beam::bad_beam(Beam::InvalidParams);
+            }
+            err = beam_gauss_cosins(Nrays,fwhm,cX,cY,cZ);
+            if ( err != ENGINE_ERROR_OK ) {
+                cerr << "ERROR: " << err << endl;
+                throw Beam::bad_beam(Beam::CreationFailure);
+                return;
+            }
             break;
         }
     }
@@ -517,9 +535,12 @@ void Beam::Normalize()
 #ifdef USING_MSVC // OpenMP v.2 does not support unsigned loop counter
         for (long long i = 0; i < Nrays; ++i ) {
 #endif
-            real_t acX = abs(cX[i]);
-            real_t acY = abs(cY[i]);
-            real_t acZ = abs(cZ[i]);
+//            real_t acX = abs(cX[i]);
+//            real_t acY = abs(cY[i]);
+//            real_t acZ = abs(cZ[i]);
+            real_t acX = fabs(cX[i]);
+            real_t acY = fabs(cY[i]);
+            real_t acZ = fabs(cZ[i]);
 
             real_t norm;
 

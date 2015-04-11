@@ -296,10 +296,14 @@ void Surface::ApplyConstrains(Beam &beam)
                 break;
             }
             case Surface::Rectangle: {
+//            cout << "SIZE: [" << Size[0] << ", " << Size[1] << "]\n";
 //                if ( (xr < -Size[0]/2.0) || (xr > Size[0]/2.0) ||
 //                     (yr < -Size[1]/2.0) || (yr > Size[1]/2.0) ) {
-                if ( (beam.X[i] < Center[0] -Size[0]/2.0) || (beam.X[i] > Center[0] +Size[0]/2.0) ||
-                     (beam.Y[i] < Center[1] -Size[1]/2.0) || (beam.Y[i] > Center[1] + Size[1]/2.0) ) {
+                if ( (beam.X[i] < (Center[0] -Size[0]/2.0)) || (beam.X[i] > (Center[0] +Size[0]/2.0)) ||
+                     (beam.Y[i] < (Center[1] -Size[1]/2.0)) || (beam.Y[i] > (Center[1] + Size[1]/2.0)) ) {
+//                    cout << "left edge: " << Center[0] -Size[0]/2.0 << "; right edge: " << Center[0] +Size[0]/2.0 << endl;
+//                    cout << "bottom edge: " << Center[1] -Size[1]/2.0 << "; top edge: " << Center[1] +Size[1]/2.0 << endl;
+//                    cout << " beam: [" << beam.X[i] << ", " << beam.Y[i] << "]\n";
                     beam.flag[i] = 0;
                     ++N_bad;
                 }
@@ -310,6 +314,7 @@ void Surface::ApplyConstrains(Beam &beam)
 
     // rearrange coordinates and cosins vectors if there are new bad rays
     if ( N_bad ) {
+//        cout << " BAD RAYS: " << N_bad << endl;
         if ( N_bad == beam.N_good_rays ) throw bad_surface(Surface::NoIntersections);
         beam.Rearrange();
     }
@@ -600,7 +605,7 @@ void Grating::ApplyQE(vector<real_t> &lambda, vector<real_t> &spec)
     if ( lambda.size() != spec.size() ) throw Surface::bad_surface(Surface::BadQE);
 
     RT_engine_error err = surface_QE(spec.size(),lambda.data(),spec.data(),QE);
-
+//cout << "surface_QE err = " << err << "\n";
     if ( err != ENGINE_ERROR_OK ) {
         throw Surface::bad_surface(Surface::BadQE);
     }
@@ -608,6 +613,7 @@ void Grating::ApplyQE(vector<real_t> &lambda, vector<real_t> &spec)
     // compute grating blaze function
 
     err = grating_energy_distr(lambda.size(),lambda.data(),abs(Order[0]),BlazeAngle,Alpha,Gamma,Grating_constant,spec.data());
+//cout << "grating_QE err = " << err << "\n";
 
     if ( err != ENGINE_ERROR_OK ) {
         throw bad_surface(Surface::BadQE);
