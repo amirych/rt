@@ -48,7 +48,8 @@ int main(int argc, char* argv[])
 
             cout << endl;
             for ( size_t i = 0; i < Npoints; ++i ) {
-                cout << QE_lambda[i] << " " << QE_val[i] << endl;
+//                cout << QE_lambda[i] << " " << QE_val[i] << endl;
+                printf("%10.8f  %5.3f\n",QE_lambda[i],QE_val[i]);
             }
         } catch ( int err ) {
             flag = err;

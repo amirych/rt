@@ -657,50 +657,54 @@ void Beam::Save(const string &filename)
 
         // first, save "good" rays
 
-        count = fwrite(X,sizeof(real_t),N_good_rays,file);
-        if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
+        if ( N_good_rays ) {
+            count = fwrite(X,sizeof(real_t),N_good_rays,file);
+            if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(Y,sizeof(real_t),N_good_rays,file);
-        if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(Y,sizeof(real_t),N_good_rays,file);
+            if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(Z,sizeof(real_t),N_good_rays,file);
-        if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(Z,sizeof(real_t),N_good_rays,file);
+            if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(cX,sizeof(real_t),N_good_rays,file);
-        if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(cX,sizeof(real_t),N_good_rays,file);
+            if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(cY,sizeof(real_t),N_good_rays,file);
-        if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(cY,sizeof(real_t),N_good_rays,file);
+            if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(cZ,sizeof(real_t),N_good_rays,file);
-        if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(cZ,sizeof(real_t),N_good_rays,file);
+            if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(lambda,sizeof(real_t),N_good_rays,file);
-        if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(lambda,sizeof(real_t),N_good_rays,file);
+            if ( count != N_good_rays ) throw Beam::bad_beam(Beam::SaveFailure);
+        }
 
         // save remained rays
         size_t rest_Nrays = Nrays-N_good_rays;
 
-        count = fwrite(X+N_good_rays,sizeof(real_t),rest_Nrays,file);
-        if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
+        if ( rest_Nrays ) {
+            count = fwrite(X+N_good_rays,sizeof(real_t),rest_Nrays,file);
+            if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(Y+N_good_rays,sizeof(real_t),rest_Nrays,file);
-        if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(Y+N_good_rays,sizeof(real_t),rest_Nrays,file);
+            if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(Z+N_good_rays,sizeof(real_t),rest_Nrays,file);
-        if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(Z+N_good_rays,sizeof(real_t),rest_Nrays,file);
+            if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(cX+N_good_rays,sizeof(real_t),rest_Nrays,file);
-        if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(cX+N_good_rays,sizeof(real_t),rest_Nrays,file);
+            if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(cY+N_good_rays,sizeof(real_t),rest_Nrays,file);
-        if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(cY+N_good_rays,sizeof(real_t),rest_Nrays,file);
+            if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(cZ+N_good_rays,sizeof(real_t),rest_Nrays,file);
-        if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(cZ+N_good_rays,sizeof(real_t),rest_Nrays,file);
+            if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
 
-        count = fwrite(lambda+N_good_rays,sizeof(real_t),rest_Nrays,file);
-        if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
+            count = fwrite(lambda+N_good_rays,sizeof(real_t),rest_Nrays,file);
+            if ( count != rest_Nrays ) throw Beam::bad_beam(Beam::SaveFailure);
+        }
 
     } catch (Beam::bad_beam &ex) {
         fclose(file);
@@ -825,10 +829,10 @@ void Beam::swap_elements(size_t i1, size_t i2)
 int load_beam_data(const char *rt_filename, size_t *total_Nrays, size_t *N_good, size_t *N_lambda,
                    real_t **X, real_t **Y, real_t **Z,
                    real_t **cX, real_t **cY, real_t **cZ,
-                   real_t **lambda)
+                   real_t **lambda, bool all)
 {
     FILE *fid;
-    size_t n, vec_len;
+    size_t n, vec_len, nskip;
 
     real_t *ptr;
 
@@ -845,10 +849,16 @@ int load_beam_data(const char *rt_filename, size_t *total_Nrays, size_t *N_good,
         n = fread(N_good,sizeof(size_t),1,fid);
         if ( n != 1 ) throw 2;
 
-        vec_len = *N_good*sizeof(real_t);
+        if ( all ) {
+            vec_len = *total_Nrays*sizeof(real_t);
+        } else {
+            vec_len = *N_good*sizeof(real_t);
+        }
 
         n = fread(N_lambda,sizeof(size_t),1,fid);
         if ( n != 1 ) throw 2;
+
+        if ( !N_good ) throw 7; // no good rays in the beam!
 
         // allocate arrays
         if ( X != NULL ) {
@@ -893,7 +903,8 @@ int load_beam_data(const char *rt_filename, size_t *total_Nrays, size_t *N_good,
             *lambda = ptr;
         }
 
-        // read the data
+        // read the data (good rays only)
+        if ( all ) vec_len = *N_good*sizeof(real_t); // number of bytes to skipp if some vector is not required
 
         if ( X != NULL ) {
             n = fread(*X,sizeof(real_t),*N_good,fid);
@@ -949,6 +960,69 @@ int load_beam_data(const char *rt_filename, size_t *total_Nrays, size_t *N_good,
         } else {
             n = fseek(fid,vec_len,SEEK_CUR);
             if ( n ) throw 2;
+        }
+
+        if ( all ) { // read bad rays
+            size_t Nrest = *total_Nrays-(*N_good);
+
+            vec_len = Nrest*sizeof(real_t);  // number of bytes to skip if some vector is not required
+
+            if ( X != NULL ) {
+                n = fread(*X+*N_good,sizeof(real_t),Nrest,fid);
+                if ( n != Nrest ) throw 2;
+            } else {
+                n = fseek(fid,vec_len,SEEK_CUR);
+                if ( n ) throw 2;
+            }
+
+            if ( Y != NULL ) {
+                n = fread(*Y+*N_good,sizeof(real_t),Nrest,fid);
+                if ( n != Nrest ) throw 2;
+            } else {
+                n = fseek(fid,vec_len,SEEK_CUR);
+                if ( n ) throw 2;
+            }
+
+            if ( Z != NULL ) {
+                n = fread(*Z+*N_good,sizeof(real_t),Nrest,fid);
+                if ( n != Nrest ) throw 2;
+            } else {
+                n = fseek(fid,vec_len,SEEK_CUR);
+                if ( n ) throw 2;
+            }
+
+            if ( cX != NULL ) {
+                n = fread(*cX+*N_good,sizeof(real_t),Nrest,fid);
+                if ( n != Nrest ) throw 2;
+            } else {
+                n = fseek(fid,vec_len,SEEK_CUR);
+                if ( n ) throw 2;
+            }
+
+            if ( cY != NULL ) {
+                n = fread(*cY+*N_good,sizeof(real_t),Nrest,fid);
+                if ( n != Nrest ) throw 2;
+            } else {
+                n = fseek(fid,vec_len,SEEK_CUR);
+                if ( n ) throw 2;
+            }
+
+            if ( cZ != NULL ) {
+                n = fread(*cZ+*N_good,sizeof(real_t),Nrest,fid);
+                if ( n != Nrest ) throw 2;
+            } else {
+                n = fseek(fid,vec_len,SEEK_CUR);
+                if ( n ) throw 2;
+            }
+
+            if ( lambda != NULL ) {
+                n = fread(*lambda+*N_good,sizeof(real_t),Nrest,fid);
+                if ( n != Nrest ) throw 2;
+            } else {
+                n = fseek(fid,vec_len,SEEK_CUR);
+                if ( n ) throw 2;
+            }
+
         }
 
     } catch (int i) {

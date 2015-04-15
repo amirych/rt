@@ -192,7 +192,7 @@ int main(int argc, char* argv[])
 //            cout << "  X = " << X[10] << "; Y = " << Y[10] << endl;
 //            cout << "  ccdX = " << ccd_X[10] << "; ccdY = " << ccd_Y[10] << endl;
 
-            err = compute_ccd_image(N_good,ccd_X,ccd_Y,lambda,QE,spec,ccd_xdim_i,ccd_ydim_i,image);
+            err = compute_ccd_image(N_good,ccd_X,ccd_Y,lambda,QE,spec,ccd_xdim_i,ccd_ydim_i,ccd_xpix,ccd_ypix,image);
             if ( err != ENGINE_ERROR_OK ) throw 20;
 
         } catch (int err_code) {

@@ -29,13 +29,17 @@ set_target_properties(${RT_PROG} PROPERTIES COMPILE_FLAGS "-g")
 target_link_libraries(${RT_PROG} ${COMMON_LIB})
 set_target_properties(${RT_PROG} PROPERTIES INCLUDE_DIRECTORIES ${MXML_INCLUDE_DIR})
 
-# Quantum efficiency executable
+# Quantum efficiency executable (surface related only part)
 set(QE_PROG qe_comp)
 add_executable(${QE_PROG} efficiency/efficiency.cpp)
 target_link_libraries(${QE_PROG} ${COMMON_LIB})
 
 target_link_libraries(${QE_PROG} ${MXML_LIBRARIES})
 set_target_properties(${QE_PROG} PROPERTIES INCLUDE_DIRECTORIES ${MXML_INCLUDE_DIR})
+
+set(LOSS_PROG loss_comp)
+add_executable(${LOSS_PROG} efficiency/losses_comp.cpp)
+target_link_libraries(${LOSS_PROG} ${COMMON_LIB})
 
 
 # Auxiliary tools

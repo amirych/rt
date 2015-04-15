@@ -100,7 +100,8 @@ RT_engine_error ccd_coordinates(size_t Nrays, real_t *X, real_t *Y,
 
 RT_engine_error compute_ccd_image(size_t Nrays, unsigned int *ccd_X, unsigned int *ccd_Y, real_t *lambda,
                                   TabulatedFunction &QE, TabulatedFunction &incident_spec,
-                                  size_t ccd_xdim, size_t ccd_ydim, real_t *image);
+                                  size_t ccd_xdim, size_t ccd_ydim, real_t ccd_xpix, real_t ccd_ypix,
+                                  real_t *image);
 
 
 #endif // RT_ENGINE_FUNC_H

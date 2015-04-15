@@ -14,6 +14,7 @@ __constant__ real_t dev_ccd_xpix;
 __constant__ real_t dev_ccd_ypix;
 __constant__ size_t dev_ccd_xdim;
 __constant__ size_t dev_ccd_ydim;
+__constant__ real_t dev_pix_area;
 
 __constant__ real_t hc = 1.98644560233e-12; // Planck*c in ergs*mkm
 
@@ -89,6 +90,8 @@ RT_engine_error ccd_coordinates_cycle(size_t N, size_t start_elem,
 // callable host function
 //
 // ccd_X and ccd_Y must be allocated in calling routine (vector of Nrays length)
+//
+// All linear sizes (CCD light and pixel sizes ) must be in millimeter!!!
 //
 __host__
 RT_engine_error ccd_coordinates(size_t Nrays, real_t *X, real_t *Y,
@@ -222,7 +225,7 @@ void compute_ccd_image_kernel(size_t N, unsigned int *dev_ccd_X, unsigned int *d
 
     while ( idx < N ) {
         index = dev_ccd_Y[idx]*dev_ccd_xdim + dev_ccd_X[idx];
-        dev_image[index] += dev_spec[idx]/hc*dev_QE[idx]; // here dev_spec is in ergs/s/cm^2 (see "compute_ccd_image_cycle" function)
+        dev_image[index] += dev_spec[idx]/hc*dev_QE[idx]*dev_pix_area; // here dev_spec is in ergs/s/cm^2 (see "compute_ccd_image_cycle" function)
         idx += blockDim.x*gridDim.x;
     }
 
@@ -320,15 +323,18 @@ RT_engine_error compute_ccd_image_cycle(size_t N, size_t start_elem,
 //
 // lambda is a vector of wavelengths in mkm
 //
-// QE is a function of wavelength and is in E/mkm, where E is dimensionless nnumber and is in range of [0,1]
+// QE is a function of wavelength and is in E/mkm, where E is dimensionless number and is in range of [0,1]
 //
 // incident_spec is a function of dimension ergs/s/cm^2/mkm
+//
+// All linear sizes (CCD light and pixel sizes ) must be in millimeter!!!
 //
 //
 __host__
 RT_engine_error compute_ccd_image(size_t Nrays, unsigned int *ccd_X, unsigned int *ccd_Y, real_t *lambda,
                                   TabulatedFunction &QE, TabulatedFunction &incident_spec,
-                                  size_t ccd_xdim, size_t ccd_ydim, real_t *image)
+                                  size_t ccd_xdim, size_t ccd_ydim, real_t ccd_xpix, real_t ccd_ypix,
+                                  real_t *image)
 {
     cudaError_t cuda_err;
     size_t N_dev, N_chunks, rest_Nrays, start_elem, image_size, nbytes, free_mem, total_mem;
@@ -347,6 +353,13 @@ RT_engine_error compute_ccd_image(size_t Nrays, unsigned int *ccd_X, unsigned in
     }
 
     cuda_err = cudaMemcpyToSymbol(dev_ccd_ydim,&ccd_ydim,sizeof(real_t));
+    if ( cuda_err != cudaSuccess ) {
+        return ENGINE_ERROR_FAILED;
+    }
+
+    real_t pix_area = ccd_xpix*ccd_ypix*1.0E-2; // pixel area in cm^2
+
+    cuda_err = cudaMemcpyToSymbol(dev_pix_area,&pix_area,sizeof(real_t));
     if ( cuda_err != cudaSuccess ) {
         return ENGINE_ERROR_FAILED;
     }

@@ -15,7 +15,7 @@ using namespace std;
         if argument is NULL-pointer then skip reading
 */
 int load_beam_data(const char *rt_filename, size_t *total_Nrays, size_t *N_good, size_t *N_lambda,
-                   real_t **X, real_t **Y, real_t **Z, real_t **cX, real_t **cY, real_t **cZ, real_t **lambda);
+                   real_t **X, real_t **Y, real_t **Z, real_t **cX, real_t **cY, real_t **cZ, real_t **lambda, bool all = false);
 
 class Surface;
 
