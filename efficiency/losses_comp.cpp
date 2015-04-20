@@ -13,6 +13,11 @@ using namespace std;
 int main(int argc, char* argv[])
 {
 
+    if (argc < 2 ) {
+        cout << "Usage: losses_comp rt_files_list result_filename\n";
+        return 500;
+    }
+
     char* rt_files_list = argv[1];
 
     char* result_filename = argv[2];
@@ -30,6 +35,8 @@ int main(int argc, char* argv[])
 
     ifstream rt_files;
     FILE* result_file;
+
+
 
     try {
         rt_files.open(rt_files_list);
