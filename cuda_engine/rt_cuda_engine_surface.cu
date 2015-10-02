@@ -1879,42 +1879,58 @@ RT_engine_error surface_QE(size_t N, real_t *lambda, real_t *spec, TabulatedFunc
 }
 
 
-//
-// I1 function
-//
+// square of sinc-function
 __device__
-static real_t I1_func(real_t lambda, real_t beta)
+static real_t sinc2(real_t arg)
 {
-    real_t term, I1;
+    real_t si;
 
-    // compute U-function
-#ifdef RT_NUM_DOUBLE
-    I1 = RT_PI*eps/lambda*cos(beta)/cos(c-beta)*(sin(c-k1)+sin(c-beta));
-    I1 = sin(I1)/(I1);
-    term = cos(beta)*cos(c-k1)/cos(c-beta);
-#else
-    I1 = RT_PI*eps/lambda*cosf(beta)/cosf(c-beta)*(sinf(c-k1)+sinf(c-beta));
-//    I1 = 3.14159*eps/lambda*cosf(beta)/cosf(c-beta)*(sinf(c-k1)+sinf(c-beta));
-    I1 = sinf(I1)/(I1);
-    term = cosf(beta)*cosf(c-k1)/cosf(c-beta);
-#endif
-    I1 *= term;
-    I1 *= I1;
+    if ( abs(arg) < 1.0E-2*RT_PI ) { // use of approximation polynom
+        real_t a2 = arg*arg;
+        si = (0.00761*a2-0.16605)*a2+1.0;
+    } else {
+        si = sin(arg)/arg;
+    }
 
-    return I1;
+    return si*si;
 }
 
-//
-// blaze_angle in c
-// alpha in k1
-// gamma in cR
-// grating constant in eps
-//
-__global__
-static void grating_energy_distr_kernel(size_t N, real_t *dev_lambda, real_t *dev_energy_distr)
+// I = I1*I2/I3 function
+// in max_iter constant the number of grating rules is stored
+__device__
+static real_t I_func(real_t lambda, real_t beta)
 {
-    long long order_min, order_max, m;
-    real_t sin_alpha, cos_gamma, I1_norm, beta;
+    real_t I1, I2, I3, u, term;
+
+    term = RT_PI*eps/lambda;
+
+    u = term*cos(beta)/cos(c-beta)*(sin(c-k1)+sin(c-beta));
+    I1 = sinc2(u);
+
+//    printf("beta=%f\n",beta*180/RT_PI);
+//    printf("u=%e\n",u);
+//    printf("I1=%e\n",I1);
+
+    u = term*(sin(k1)+sin(beta));
+    I2 = sinc2(max_iter*u);
+
+    I3 = sinc2(u);
+
+    term = cos(c-k1)*cos(beta)/cos(c-beta);
+    term *= term;
+
+//    printf("I2=%e\n",I2);
+//    printf("I3=%e\n",I3);
+
+    return term*I1*I2/I3;
+}
+
+
+__global__
+static void gr_eff_kernel(size_t N, real_t *dev_lambda, real_t *dev_energy_distr)
+{
+    long order_min, order_max, m;
+    real_t sin_alpha, cos_gamma, I_sum, beta, I;
 
     size_t idx = threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -1925,7 +1941,165 @@ static void grating_energy_distr_kernel(size_t N, real_t *dev_lambda, real_t *de
 
         order_min = __double2ll_rz(eps/dev_lambda[idx]*(sin_alpha-1)*cos_gamma);
         order_max = __double2ll_rz(eps/dev_lambda[idx]*(sin_alpha+1)*cos_gamma);
+#else
+        sin_alpha = sinf(k1);
+        cos_gamma = cosf(cR);
 
+        order_min = __float2ll_rz(eps/dev_lambda[idx]*(sin_alpha-1)*cos_gamma);
+        order_max = __float2ll_rz(eps/dev_lambda[idx]*(sin_alpha+1)*cos_gamma);
+#endif
+
+        I_sum = 0.0;
+
+        for ( m = order_min; m <= order_max; ++m ) {
+#ifdef RT_NUM_DOUBLE
+            beta = asin(m*dev_lambda[idx]/eps/cos_gamma-sin_alpha);
+#else
+            beta = asinf(m*dev_lambda[idx]/eps/cos_gamma-sin_alpha);
+#endif
+            I_sum += I_func(dev_lambda[idx],beta);
+        }
+
+#ifdef RT_NUM_DOUBLE
+        beta = asin(dev_order*dev_lambda[idx]/(eps*cos_gamma) - sin_alpha);
+#else
+        beta = asinf(dev_order*dev_lambda[idx]/(eps*cos_gamma) - sin_alpha);
+#endif
+
+        I = I_func(dev_lambda[idx],beta);
+
+        printf("beta = %f\n",beta*180/RT_PI);
+        printf("I = %e\n",I);
+        printf("Isum = %e\n",I_sum);
+
+        dev_energy_distr[idx] *= I/I_sum;
+
+        idx += blockDim.x*gridDim.x;
+    }
+
+}
+
+
+/*
+//
+// I1 function (exactly follows to Tarasov but without I2 and I3 computations)
+//
+__device__
+static real_t I1_func(real_t lambda, real_t beta)
+{
+    real_t term, I1;
+
+    // compute U-function
+#ifdef RT_NUM_DOUBLE
+    I1 = RT_PI*eps/lambda*cos(beta)/cos(c-beta)*(sin(c-k1)+sin(c-beta));
+//    printf("lambda = %f, U = %f",lambda,I1);
+    term = cos(beta)*cos(c-k1)/cos(c-beta);
+//    I1 *= term;
+    if ( abs(I1) < RT_PI/2.0) {
+        I1 *= I1;
+        I1 = (0.00761*I1-0.16605)*I1+1;
+    } else I1 = sin(I1)/(I1);
+#else
+    I1 = RT_PI*eps/lambda*cosf(beta)/cosf(c-beta)*(sinf(c-k1)+sinf(c-beta));
+    I1 = sinf(I1)/(I1);
+    term = cosf(beta)*cosf(c-k1)/cosf(c-beta);
+#endif
+    I1 *= term;
+    I1 *= I1;
+
+//    printf("lambda = %f, beta = %f, I1 = %f\n",lambda,beta*180/RT_PI,I1);
+
+//    printf("EPS = %f; k1 = %f, c = %f\n",eps,k1,c);
+    //    printf("lambda = %f, BETA = %f\n",lambda,beta*180/RT_PI);
+    printf("BETA = %f\n",beta*180/RT_PI);
+    return I1;
+}
+*/
+
+//
+// I1 function (modified by Zeddo)
+//
+__device__
+static real_t I1_func(real_t lambda, real_t beta)
+{
+    real_t term1, term2, I1, d, dprime;
+
+#ifdef RT_NUM_DOUBLE
+    if ( beta >= c ) {
+        I1 = RT_PI/lambda*(sin(c-k1)+sin(c-beta));
+        d = eps*cos(beta)/cos(c-beta);
+//        dprime = 0.0;
+        term1 = cos(c-k1)*sin(I1*d)/I1;
+        I1 = term1*term1;
+    } else {
+        if ( beta > (c-RT_PI/2.0) ) {
+            d = eps*cos(c);
+            dprime = eps*sin(c);
+            I1 = RT_PI/lambda*(sin(c-k1)+sin(c-beta));
+            term1 = cos(c-k1)*sin(I1*d)/I1;
+            I1 = RT_PI/lambda*(cos(c-k1)+cos(c-beta));
+            term2 = sin(c-k1)*sin(I1*dprime)/I1;
+            I1 = term1*term1 + term2*term2;
+        } else {
+//            d = 0.0;
+            I1 = RT_PI/lambda*(cos(c-k1)+cos(c-beta));
+            dprime = eps*cos(beta)/sin(c-beta);
+            term2 = sin(c-k1)*sin(I1*dprime)/I1;
+            I1 = term2*term2;
+        }
+    }
+#else
+    if ( beta >= c ) {
+        I1 = RT_PI/lambda*sinf(c-k1)+sinf(c-beta);
+        d = eps*cosf(beta)/cosf(c-beta);
+//        dprime = 0.0;
+        term1 = cosf(c-k1)*sinf(I1*d)/I1;
+        I1 = term1*term1;
+    } else {
+        if ( beta > (c-RT_PI/2.0) ) {
+            d = eps*cosf(c);
+            dprime = eps*sinf(c);
+            I1 = RT_PI/lambda*sinf(c-k1)+sinf(c-beta);
+            term1 = cosf(c-k1)*sinf(I1*d)/I1;
+            I1 = RT_PI/lambda*cosf(c-k1)+cosf(c-beta);
+            term2 = sinf(c-k1)*sinf(I1*dprime)/I1;
+            I1 = term1*term1 + term2*term2;
+        } else {
+//            d = 0.0;
+            I1 = RT_PI/lambda*cosf(c-k1)+cosf(c-beta);
+            dprime = eps*cosf(beta)/sinf(c-beta);
+            term2 = sinf(c-k1)*sinf(I1*dprime)/I1;
+            I1 = term2*term2;
+        }
+    }
+#endif
+
+    return I1;
+}
+
+
+//
+// blaze_angle in c
+// alpha in k1
+// gamma in cR
+// grating constant in eps
+//
+__global__
+static void grating_energy_distr_kernel(size_t N, real_t *dev_lambda, real_t *dev_energy_distr)
+{
+//    long long order_min, order_max, m;
+    long order_min, order_max, m;
+    real_t sin_alpha, cos_gamma, I1_norm, beta, I1;
+
+    size_t idx = threadIdx.x + blockIdx.x*blockDim.x;
+
+    while ( idx < N ) {
+#ifdef RT_NUM_DOUBLE
+        sin_alpha = sin(k1);
+        cos_gamma = cos(cR);
+
+        order_min = __double2ll_rz(eps/dev_lambda[idx]*(sin_alpha-1)*cos_gamma);
+        order_max = __double2ll_rz(eps/dev_lambda[idx]*(sin_alpha+1)*cos_gamma);
 #else
         sin_alpha = sinf(k1);
         cos_gamma = cosf(cR);
@@ -1934,6 +2108,7 @@ static void grating_energy_distr_kernel(size_t N, real_t *dev_lambda, real_t *de
         order_max = __float2ll_rz(eps/dev_lambda[idx]*(sin_alpha+1)*cos_gamma);
 #endif
         I1_norm = 0.0;
+
         for ( m = order_min; m <= order_max; ++m ) {
 #ifdef RT_NUM_DOUBLE
             beta = asin(m*dev_lambda[idx]/eps/cos_gamma-sin_alpha);
@@ -1941,14 +2116,23 @@ static void grating_energy_distr_kernel(size_t N, real_t *dev_lambda, real_t *de
             beta = asinf(m*dev_lambda[idx]/eps/cos_gamma-sin_alpha);
 #endif
             I1_norm += I1_func(dev_lambda[idx],beta);
+//            printf("lambda = %f, beta = %f, I1_norm = %f\n",dev_lambda[idx],beta*180/RT_PI,I1_norm);
         }
+//        printf("lambda = %f, min = %d\n",dev_lambda[idx],order_min);
+//        printf("lambda = %f, max = %d\n",dev_lambda[idx],order_max);
 
 #ifdef RT_NUM_DOUBLE
         beta = asin(dev_order*dev_lambda[idx]/(eps*cos_gamma) - sin_alpha);
 #else
         beta = asinf(dev_order*dev_lambda[idx]/(eps*cos_gamma) - sin_alpha);
 #endif
-        dev_energy_distr[idx] *= I1_func(dev_lambda[idx],beta)/I1_norm;
+        I1 = I1_func(dev_lambda[idx],beta);
+        dev_energy_distr[idx] *= I1/I1_norm;
+
+//        dev_energy_distr[idx] *= I1_func(dev_lambda[idx],beta)/I1_norm;
+
+        printf("lambda = %f, beta = %f, I1 = %f, I1_norm = %f\n",dev_lambda[idx],beta*180/RT_PI,I1,I1_norm);
+//        printf("eff = %f\n",I1_func(dev_lambda[idx],beta)/I1_norm);
 
         idx += blockDim.x*gridDim.x;
     }
@@ -1970,7 +2154,13 @@ static RT_engine_error grating_energy_distr_cycle(size_t N, size_t start_elem, r
     cuda_err = cudaMemcpy(dev_lambda,lambda+start_elem,vec_len,cudaMemcpyHostToDevice);
     if ( cuda_err != cudaSuccess ) return ENGINE_ERROR_FAILED;
 
+    cuda_err = cudaMemcpy(dev_energy_distr,energy_distr+start_elem,vec_len,cudaMemcpyHostToDevice);
+    if ( cuda_err != cudaSuccess ) return ENGINE_ERROR_FAILED;
+
+//printf("\n");
+
     grating_energy_distr_kernel<<<N_cuda_blocks,N_cuda_threads>>>(N,dev_lambda,dev_energy_distr);
+//    gr_eff_kernel<<<N_cuda_blocks,N_cuda_threads>>>(N,dev_lambda,dev_energy_distr);
 
     cuda_err = cudaMemcpy(energy_distr+start_elem,dev_energy_distr,vec_len,cudaMemcpyDeviceToHost);
     if ( cuda_err != cudaSuccess ) return ENGINE_ERROR_FAILED;
@@ -1995,7 +2185,16 @@ RT_engine_error grating_energy_distr(size_t N, real_t *lambda,
 
     size_t dev_N, N_chunks, rest_N, start_elem;
 
+    size_t Nrules = 22500;
+    cuda_err = cudaMemcpyToSymbol(max_iter,&Nrules,sizeof(size_t));
+    if ( cuda_err != cudaSuccess ) {
+        return ENGINE_ERROR_FAILED;
+    }
+
+
     real_t *dev_lambda, *dev_energy_distr;
+
+//    printf("CONST = %f, ORDER = %d\n",gr_const,order);
 
     // copy angles and order
     cuda_err = cudaMemcpyToSymbol(c,&blaze_angle,sizeof(real_t));

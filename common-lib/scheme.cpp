@@ -1276,7 +1276,7 @@ void Scheme::ComputeQE(size_t Nlambda, char *QE_filename)
 
             for ( current_surface = scheme.begin(); current_surface != scheme.end(); ++current_surface) {
                 type = (*current_surface)->GetType();
-
+//                cout << "QE val: " << qe_val[50] << endl;
                 switch ( type ) {
                     case Surface::Grating: {
                         if ( wavelenth_ranges.size() > 1 ) { // order from range file

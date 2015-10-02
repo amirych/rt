@@ -612,6 +612,8 @@ void Grating::ApplyQE(vector<real_t> &lambda, vector<real_t> &spec)
 
     // compute grating blaze function
 
+//    cout << "Grating angles: " << BlazeAngle << ", " << Alpha << ", " << Gamma << endl;
+//    cout << "Const: " << Grating_constant << ", Order: " << Order[0] << endl;
     err = grating_energy_distr(lambda.size(),lambda.data(),abs(Order[0]),BlazeAngle,Alpha,Gamma,Grating_constant,spec.data());
 //cout << "grating_QE err = " << err << "\n";
 
