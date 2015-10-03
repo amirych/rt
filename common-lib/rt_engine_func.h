@@ -74,7 +74,7 @@ RT_engine_error surface_QE(size_t N, real_t *lambda, real_t *spec, TabulatedFunc
 
 RT_engine_error grating_energy_distr(size_t N, real_t *lambda,
                                      long order, real_t blaze_angle, real_t alpha,
-                                     real_t gamma, real_t gr_const,
+                                     real_t gamma, real_t gr_const, real_t rule_start, real_t rule_stop,
                                      real_t *energy_distr);
 
 

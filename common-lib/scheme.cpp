@@ -510,7 +510,7 @@ void Scheme::load_from_file(const string &filename, bool QE_flag)
 
             switch ( tp ) { // type of surface
                 case Surface::Grating: { // reflective or transparent; for transparent: files/values with/of refractive indices as function of wavelength;
-                                         // grating constant, working order or order range
+                                         // grating constant, working order or order range, rule parameters
                     try {
                         sgtype = get_string_attr("grating_type");
                         if ( sgtype == "REFLECTIVE") {
@@ -1127,7 +1127,7 @@ void Scheme::ComputeQE(size_t Nlambda, char *QE_filename)
     mxml_index_t *index;
     string sclass, stype, qe_file;
     vector<real_t> qe_val, val;
-    real_t alpha, gamma, blaze_angle, grating_const;
+    real_t alpha, gamma, blaze_angle, grating_const, rule_start, rule_stop;
     vector<long> order(1,0);
     TabulatedFunction qe_tab;
     Surface *surface;
@@ -1166,8 +1166,23 @@ void Scheme::ComputeQE(size_t Nlambda, char *QE_filename)
                     grating_const = val[0];
                     val = get_numeric_attr("order");
                     order[0] = static_cast<long>(val[0]);
+                    try {
+                        val = get_numeric_attr("rule_params",true);
+                        if ( val.size() == 1 ) { // just a single value, interpretating this as start = 0, stop = value
+                            vector<real_t>::iterator it = val.begin();
+                            val.insert(it,0.0);
+                        }
+                    } catch  (Scheme::bad_scheme &ex) { // no rule params, interpretating this as full rule edge
+                        val.clear();
+                        val.push_back(0.0);
+                        val.push_back(1.0);
+                    }
+                    rule_start = val[0];
+                    rule_stop = val[1];
+
                     surface = new Grating(Surface::Plane,Surface::Rectangle,Grating::Reflective,order,grating_const,1.0,1.0);
-                    static_cast<Grating*>(surface)->SetRuleParams(blaze_angle,alpha,gamma);
+                    static_cast<Grating*>(surface)->SetRuleParams(blaze_angle,alpha,gamma,rule_start,rule_stop);
+//                    static_cast<Grating*>(surface)->SetRuleParams(blaze_angle,alpha,gamma);
 //                    cout << "\n" << blaze_angle << ", " << alpha << ", " << gamma << ", " << order[0] << endl;
                     ++number_of_grating;
                 } else {

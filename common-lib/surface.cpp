@@ -592,11 +592,22 @@ void Grating::SetOrder(const long &ord)
 
 
 // all the angles must be given in degrees!
-void Grating::SetRuleParams(const real_t &blaze_ang, const real_t &alpha_ang, const real_t &gamma_ang)
+void Grating::SetRuleParams(const real_t &blaze_ang, const real_t &alpha_ang, const real_t &gamma_ang,
+                            const real_t &rule_start_pos, const real_t &rule_stop_pos)
 {
     BlazeAngle = blaze_ang*deg2rad;
     Alpha = alpha_ang*deg2rad;
     Gamma = gamma_ang*deg2rad;
+
+    Rule_start = rule_start_pos;
+    Rule_stop = rule_stop_pos;
+
+    if ( Rule_start < 0.0 ) Rule_start = 0.0;
+    if ( Rule_start > 1.0 ) Rule_start = 1.0;
+    if ( Rule_stop < 0.0 ) Rule_stop = 0.0;
+    if ( Rule_stop > 1.0 ) Rule_stop = 1.0;
+
+    if ( Rule_start >= Rule_stop ) throw Grating::bad_grating(Grating::BadRuleParams);
 }
 
 
@@ -614,7 +625,9 @@ void Grating::ApplyQE(vector<real_t> &lambda, vector<real_t> &spec)
 
 //    cout << "Grating angles: " << BlazeAngle << ", " << Alpha << ", " << Gamma << endl;
 //    cout << "Const: " << Grating_constant << ", Order: " << Order[0] << endl;
-    err = grating_energy_distr(lambda.size(),lambda.data(),abs(Order[0]),BlazeAngle,Alpha,Gamma,Grating_constant,spec.data());
+
+//    err = grating_energy_distr(lambda.size(),lambda.data(),abs(Order[0]),BlazeAngle,Alpha,Gamma,Grating_constant,spec.data());
+    err = grating_energy_distr(lambda.size(),lambda.data(),abs(Order[0]),BlazeAngle,Alpha,Gamma,Grating_constant,Rule_start,Rule_stop,spec.data());
 //cout << "grating_QE err = " << err << "\n";
 
     if ( err != ENGINE_ERROR_OK ) {

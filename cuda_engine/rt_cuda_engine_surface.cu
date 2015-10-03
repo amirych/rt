@@ -23,6 +23,8 @@ __constant__ real_t c;        // 1/R, where R is curvature radius
 __constant__ real_t k1;       // (k+1) where k = -e^2 and e is eccentricity
 __constant__ real_t cR;       // 1/R, where R is radius of revolution for toric class surfaces
 __constant__ real_t eps;      // tolerance, a small positive number for iterative algorithm
+__constant__ real_t dev_rule_start; // relative rule start position
+__constant__ real_t dev_rule_stop;  // relative rule stop position
 __constant__ size_t max_iter; // maximal number of iterations for iterative intersection algorithm
 __constant__ size_t N_poly;   // number of polynom members (aspheric part of F(X,Y,Z))
 
@@ -2023,18 +2025,22 @@ __device__
 static real_t I1_func(real_t lambda, real_t beta)
 {
     real_t term1, term2, I1, d, dprime;
+    real_t rule_size = dev_rule_stop - dev_rule_start;
 
 #ifdef RT_NUM_DOUBLE
     if ( beta >= c ) {
         I1 = RT_PI/lambda*(sin(c-k1)+sin(c-beta));
         d = eps*cos(beta)/cos(c-beta);
+        d *= rule_size;
 //        dprime = 0.0;
         term1 = cos(c-k1)*sin(I1*d)/I1;
         I1 = term1*term1;
     } else {
         if ( beta > (c-RT_PI/2.0) ) {
             d = eps*cos(c);
+            d *= rule_size;
             dprime = eps*sin(c);
+            dprime *= rule_size;
             I1 = RT_PI/lambda*(sin(c-k1)+sin(c-beta));
             term1 = cos(c-k1)*sin(I1*d)/I1;
             I1 = RT_PI/lambda*(cos(c-k1)+cos(c-beta));
@@ -2044,6 +2050,7 @@ static real_t I1_func(real_t lambda, real_t beta)
 //            d = 0.0;
             I1 = RT_PI/lambda*(cos(c-k1)+cos(c-beta));
             dprime = eps*cos(beta)/sin(c-beta);
+            dprime *= rule_size;
             term2 = sin(c-k1)*sin(I1*dprime)/I1;
             I1 = term2*term2;
         }
@@ -2053,12 +2060,15 @@ static real_t I1_func(real_t lambda, real_t beta)
         I1 = RT_PI/lambda*sinf(c-k1)+sinf(c-beta);
         d = eps*cosf(beta)/cosf(c-beta);
 //        dprime = 0.0;
+        d *= rule_size;
         term1 = cosf(c-k1)*sinf(I1*d)/I1;
         I1 = term1*term1;
     } else {
         if ( beta > (c-RT_PI/2.0) ) {
             d = eps*cosf(c);
+            d *= rule_size;
             dprime = eps*sinf(c);
+            dprime *= rule_size;
             I1 = RT_PI/lambda*sinf(c-k1)+sinf(c-beta);
             term1 = cosf(c-k1)*sinf(I1*d)/I1;
             I1 = RT_PI/lambda*cosf(c-k1)+cosf(c-beta);
@@ -2068,6 +2078,7 @@ static real_t I1_func(real_t lambda, real_t beta)
 //            d = 0.0;
             I1 = RT_PI/lambda*cosf(c-k1)+cosf(c-beta);
             dprime = eps*cosf(beta)/sinf(c-beta);
+            dprime *= rule_size;
             term2 = sinf(c-k1)*sinf(I1*dprime)/I1;
             I1 = term2*term2;
         }
@@ -2131,7 +2142,7 @@ static void grating_energy_distr_kernel(size_t N, real_t *dev_lambda, real_t *de
 
 //        dev_energy_distr[idx] *= I1_func(dev_lambda[idx],beta)/I1_norm;
 
-        printf("lambda = %f, beta = %f, I1 = %f, I1_norm = %f\n",dev_lambda[idx],beta*180/RT_PI,I1,I1_norm);
+//        printf("lambda = %f, beta = %f, I1 = %f, I1_norm = %f\n",dev_lambda[idx],beta*180/RT_PI,I1,I1_norm);
 //        printf("eff = %f\n",I1_func(dev_lambda[idx],beta)/I1_norm);
 
         idx += blockDim.x*gridDim.x;
@@ -2176,7 +2187,7 @@ static RT_engine_error grating_energy_distr_cycle(size_t N, size_t start_elem, r
 __host__
 RT_engine_error grating_energy_distr(size_t N, real_t *lambda,
                                      long order, real_t blaze_angle, real_t alpha,
-                                     real_t gamma, real_t gr_const,
+                                     real_t gamma, real_t gr_const, real_t rule_start, real_t rule_stop,
                                      real_t *energy_distr)
 {
     cudaError_t cuda_err;
@@ -2208,6 +2219,16 @@ RT_engine_error grating_energy_distr(size_t N, real_t *lambda,
     }
 
     cuda_err = cudaMemcpyToSymbol(cR,&gamma,sizeof(real_t));
+    if ( cuda_err != cudaSuccess ) {
+        return ENGINE_ERROR_FAILED;
+    }
+
+    cuda_err = cudaMemcpyToSymbol(dev_rule_start,&rule_start,sizeof(real_t));
+    if ( cuda_err != cudaSuccess ) {
+        return ENGINE_ERROR_FAILED;
+    }
+
+    cuda_err = cudaMemcpyToSymbol(dev_rule_stop,&rule_stop,sizeof(real_t));
     if ( cuda_err != cudaSuccess ) {
         return ENGINE_ERROR_FAILED;
     }

@@ -134,7 +134,7 @@ class Grating: public Surface
 {
 public:
     enum GratingType {Reflective,Transparent};
-    enum GratingError {BadRefIndex,BadRefIndexFile,BadOrder,BadType};
+    enum GratingError {BadRefIndex,BadRefIndexFile,BadOrder,BadType, BadRuleParams};
 
     Grating(const SurfaceClass sclass, const SurfaceShape shape, const Grating::GratingType gr_type, const vector<long> &ord,
             const real_t &gr_const, const real_t &ref_index1, const real_t &ref_index2);
@@ -154,7 +154,8 @@ public:
     void SetOrder(const long &ord);
 
     // all the angles must be given in degrees!
-    void SetRuleParams(const real_t &blaze_ang, const real_t &alpha_ang, const real_t &gamma_ang);
+    void SetRuleParams(const real_t &blaze_ang, const real_t &alpha_ang, const real_t &gamma_ang,
+                       const real_t &rule_start_pos = 0.0, const real_t &rule_stop_pos = 1.0);
 
     virtual void ApplyQE(vector<real_t> &lambda, vector<real_t> &spec);
 
@@ -175,6 +176,8 @@ private:
     real_t BlazeAngle;        // blaze angle of grating rule (in radians)
     real_t Alpha;             // incident angle (in radians)
     real_t Gamma;             // incident angle along rule (in radians)
+    real_t Rule_start;        // relative beginning position of rule (from 0 to 1.0). It is top position along rule edge
+    real_t Rule_stop;         // relative end position of rule (from 0 to 1.0).  It is bottom position along rule edge
 };
 
 
