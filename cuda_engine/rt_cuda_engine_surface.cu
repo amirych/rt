@@ -1982,18 +1982,19 @@ static void gr_eff_kernel(size_t N, real_t *dev_lambda, real_t *dev_energy_distr
 }
 
 
-/*
 //
 // I1 function (exactly follows to Tarasov but without I2 and I3 computations)
 //
 __device__
-static real_t I1_func(real_t lambda, real_t beta)
+static real_t I1_func_Tarasov(real_t lambda, real_t beta)
 {
     real_t term, I1;
+    real_t rule_size = dev_rule_stop - dev_rule_start;
 
     // compute U-function
 #ifdef RT_NUM_DOUBLE
-    I1 = RT_PI*eps/lambda*cos(beta)/cos(c-beta)*(sin(c-k1)+sin(c-beta));
+//    I1 = RT_PI*eps/lambda*cos(beta)/cos(c-beta)*(sin(c-k1)+sin(c-beta));
+    I1 = RT_PI*eps*rule_size/lambda*cos(beta)/cos(c-beta)*(sin(c-k1)+sin(c-beta)); // modification: not entire rule area works
 //    printf("lambda = %f, U = %f",lambda,I1);
     term = cos(beta)*cos(c-k1)/cos(c-beta);
 //    I1 *= term;
@@ -2013,10 +2014,9 @@ static real_t I1_func(real_t lambda, real_t beta)
 
 //    printf("EPS = %f; k1 = %f, c = %f\n",eps,k1,c);
     //    printf("lambda = %f, BETA = %f\n",lambda,beta*180/RT_PI);
-    printf("BETA = %f\n",beta*180/RT_PI);
+//    printf("BETA = %f\n",beta*180/RT_PI);
     return I1;
 }
-*/
 
 //
 // I1 function (modified by Zeddo)
@@ -2126,7 +2126,8 @@ static void grating_energy_distr_kernel(size_t N, real_t *dev_lambda, real_t *de
 #else
             beta = asinf(m*dev_lambda[idx]/eps/cos_gamma-sin_alpha);
 #endif
-            I1_norm += I1_func(dev_lambda[idx],beta);
+//            I1_norm += I1_func(dev_lambda[idx],beta);
+            I1_norm += I1_func_Tarasov(dev_lambda[idx],beta);
 //            printf("lambda = %f, beta = %f, I1_norm = %f\n",dev_lambda[idx],beta*180/RT_PI,I1_norm);
         }
 //        printf("lambda = %f, min = %d\n",dev_lambda[idx],order_min);
@@ -2137,7 +2138,8 @@ static void grating_energy_distr_kernel(size_t N, real_t *dev_lambda, real_t *de
 #else
         beta = asinf(dev_order*dev_lambda[idx]/(eps*cos_gamma) - sin_alpha);
 #endif
-        I1 = I1_func(dev_lambda[idx],beta);
+//        I1 = I1_func(dev_lambda[idx],beta);
+        I1 = I1_func_Tarasov(dev_lambda[idx],beta);
         dev_energy_distr[idx] *= I1/I1_norm;
 
 //        dev_energy_distr[idx] *= I1_func(dev_lambda[idx],beta)/I1_norm;
