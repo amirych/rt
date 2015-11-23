@@ -58,6 +58,11 @@ set(PRINT_LAMBDA print_lambda)
 add_executable(${PRINT_LAMBDA} tools/print_lambda.cpp)
 target_link_libraries(${PRINT_LAMBDA} ${COMMON_LIB})
 
+set(APPLY_EXTINCTION apply_extinction)
+add_executable(${APPLY_EXTINCTION} tools/apply_extinction.cpp)
+target_link_libraries(${APPLY_EXTINCTION} ${COMMON_LIB})
+
+
 find_package(OpenMP QUIET)
 if (OPENMP_FOUND) # add OpenMP compile and link properties to the target
     target_compile_definitions(${RT_PROG} PUBLIC USE_OPENMP)
