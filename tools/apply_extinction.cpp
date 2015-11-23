@@ -38,16 +38,20 @@ int main(int argc, char* argv[])
 
     int err_code = 0;
     size_t counts;
+    size_t i_range = 1;
     try {
         ext_curve.Load(argv[2]);
 
         while ( !feof(QE_file) ) {
             // read QE for current range
+
             counts = fread(&Npoints,sizeof(size_t),1,QE_file);
             if ( counts != 1 ) {
                 err_code = 10;
                 throw err_code;
             }
+
+            cout << "Reading " << i_range << "-th range " << "(" << Npoints << " points)  ...";
 
             QE_lambda = (real_t*) malloc(sizeof(real_t)*Npoints);
             if ( QE_lambda == NULL ) {
@@ -73,10 +77,12 @@ int main(int argc, char* argv[])
                 throw err_code;
             }
 
+            cout << "   Done!\n";
 
             // compute corrected for extinction QE (apply extinction to QE curve)
 
-            for ( size_t i = 0; i < Npoints; +i ) {
+            cout << "   Computing and writing QE curve for " << i_range << "-th range ...";
+            for ( size_t i = 0; i < Npoints; ++i ) {
                 QE_val[i] *= pow(10.0,-0.4*ext_curve[QE_lambda[i]]);
             }
 
@@ -100,11 +106,15 @@ int main(int argc, char* argv[])
                 throw err_code;
             }
 
+            cout << "   Done!\n";
+
             free(QE_lambda);
             free(QE_val);
 
             QE_lambda = NULL;
             QE_val = NULL;
+
+            ++i_range;
         }
     } catch (TabulatedFunction::bad_tab_func &ex) {
         switch ( ex.bad_tab_func_error() ) {
