@@ -47,6 +47,7 @@ int main(int argc, char* argv[])
 
             counts = fread(&Npoints,sizeof(size_t),1,QE_file);
             if ( counts != 1 ) {
+                if ( feof(QE_file) ) break;
                 err_code = 10;
                 throw err_code;
             }
@@ -78,6 +79,8 @@ int main(int argc, char* argv[])
             }
 
             cout << "   Done!\n";
+
+            cout << QE_lambda[0] << ", " << QE_lambda[Npoints-1] << endl;
 
             // compute corrected for extinction QE (apply extinction to QE curve)
 
