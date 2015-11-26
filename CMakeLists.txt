@@ -10,8 +10,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}")
 #message(STATUS ${CMAKE_THREAD_LIBS_INIT})
 #message(STATUS "WIN32: " ${CMAKE_USE_WIN32_THREADS_INIT})
 
-# mandatory library
+# mandatory libraries
 find_package(MXML REQUIRED)
+find_package(CFITSIO REQUIRED)
 
 
 # common library
@@ -74,18 +75,11 @@ if (OPENMP_FOUND) # add OpenMP compile and link properties to the target
 endif()
 
 
-find_package(CFITSIO QUIET)
-if (CFITSIO_FOUND)
-    message(STATUS "CFITSIO library was found!")
-    message(STATUS "Add \"ccd_frame\" target")
-    set(CCD_FRAME ccd_frame)
-    add_executable(${CCD_FRAME} ./ccd/ccd_frame.cpp)
-    target_link_libraries(${CCD_FRAME} ${COMMON_LIB})
-    set_target_properties(${CCD_FRAME} PROPERTIES LINK_FLAGS ${CFITSIO_LIBRARY})
-    set_target_properties(${CCD_FRAME} PROPERTIES INCLUDE_DIRECTORIES ${CFITSIO_INCLUDE_DIR})
-else()
-    message(STATUS "CFITSIO library was not found! Do not compile ccd_frame target!")
-endif()
+set(CCD_FRAME ccd_frame)
+add_executable(${CCD_FRAME} ./ccd/ccd_frame.cpp)
+target_link_libraries(${CCD_FRAME} ${COMMON_LIB})
+set_target_properties(${CCD_FRAME} PROPERTIES LINK_FLAGS ${CFITSIO_LIBRARY})
+set_target_properties(${CCD_FRAME} PROPERTIES INCLUDE_DIRECTORIES ${CFITSIO_INCLUDE_DIR})
 
 
 find_package(CUDA QUIET)
